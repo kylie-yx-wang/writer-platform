@@ -1,7 +1,7 @@
 'use client';
 
-// 1. We import EditorProvider and useCurrentEditor instead of useEditor
-import { EditorProvider, useCurrentEditor } from '@tiptap/react';
+import { useState, useEffect } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
@@ -19,16 +19,39 @@ import {
     Heading2 
   } from 'lucide-react';
 
+// 1. Extensions safely isolated
+const extensions = [
+  StarterKit,
+  Underline,
+  TextAlign.configure({
+    types: ['heading', 'paragraph'],
+  }),
+];
+
 // --- The Toolbar Component ---
-const MenuBar = () => {
-  // 2. We pull the editor directly from the Provider context
-  const { editor } = useCurrentEditor();
+const MenuBar = ({ editor }: { editor: any }) => {
+  // 2. THE FIX: A manual trigger to force Next.js to re-render the buttons
+  const [, setRenderTrigger] = useState(0);
+
+  useEffect(() => {
+    if (!editor) return;
+    
+    // Tiptap fires a 'transaction' event on every keystroke, click, or highlight.
+    // We tell React to update the component whenever this happens!
+    const handleUpdate = () => setRenderTrigger((val) => val + 1);
+    
+    editor.on('transaction', handleUpdate);
+    
+    return () => {
+      editor.off('transaction', handleUpdate);
+    };
+  }, [editor]);
 
   if (!editor) {
     return null;
   }
 
-  // Back to your custom palette!
+  // 3. Back to your custom Navy theme!
   const getButtonClass = (isActive: boolean) => {
     if (isActive) {
       return 'p-2 rounded-md transition-colors bg-writer-navy text-writer-white shadow-sm';
@@ -148,33 +171,22 @@ const MenuBar = () => {
 
 // --- The Main Editor Component ---
 export default function Editor() {
-  // 3. Define extensions outside of the component
-  const extensions = [
-    StarterKit,
-    Underline,
-    TextAlign.configure({
-      types: ['heading', 'paragraph'],
-    }),
-  ];
+  const editor = useEditor({
+    extensions,
+    content: '<p>Start drafting your scene here...</p>',
+    immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        class: 'min-h-[500px] focus:outline-none text-writer-black leading-relaxed text-lg prose prose-stone max-w-none px-2 py-4',
+      },
+    },
+  });
 
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="bg-writer-white border border-writer-beige rounded-xl p-6 shadow-sm">
-        
-        {/* 4. Use EditorProvider. It automatically connects the MenuBar and handles the text area! */}
-        <EditorProvider 
-          slotBefore={<MenuBar />} 
-          extensions={extensions} 
-          content="<p>Start drafting your scene here...</p>"
-          editorProps={{
-            attributes: {
-              class: 'min-h-[500px] focus:outline-none text-writer-black leading-relaxed text-lg prose prose-stone max-w-none px-2 py-4',
-            },
-          }}
-        >
-          {/* Tiptap magically renders the editable text area right here */}
-        </EditorProvider>
-
+        <MenuBar editor={editor} />
+        <EditorContent editor={editor} />
       </div>
     </div>
   );
