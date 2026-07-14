@@ -1,66 +1,69 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import ProjectGrid, { Project } from '@/components/ProjectGrid';
 
-export default function ProjectsPage() {
+export default function ProjectsDashboard() {
   const router = useRouter();
   const supabase = createClient();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (data) setProjects(data);
+      setIsLoading(false);
+    };
+
+    fetchProjects();
+  }, [supabase]);
 
   const handleCreateProject = async () => {
     setIsCreating(true);
-    
-    // 1. Get the currently logged-in user
     const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      alert("You must be logged in!");
-      setIsCreating(false);
-      return;
-    }
+    if (!user) return;
 
-    // 2. Create the project in the database
     const { data, error } = await supabase
       .from('projects')
-      .insert([
-        { 
-          user_id: user.id, 
-          title: 'Untitled Project' 
-        }
-      ])
-      .select() // <-- CRITICAL: This tells Supabase to return the new data back to us
-      .single(); // <-- Tells Supabase we only expect one row back
+      .insert([{ user_id: user.id, title: 'Untitled Project' }])
+      .select().single();
 
-    if (error) {
-      console.error('Error creating project:', error);
-      alert('Failed to create project.');
-      setIsCreating(false);
-    } else if (data) {
-      // 3. Send the user to their shiny new project page!
-      router.push(`/projects/${data.id}`);
-    }
+    if (data) router.push(`/projects/${data.id}`);
+    if (error) setIsCreating(false);
   };
-  return (
-    <main className="p-8 md:p-12 max-w-5xl">
-      <div className="border-b border-writer-beige pb-6 mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-writer-navy tracking-tight mb-2">Your Projects</h1>
-          <p className="text-writer-brown text-lg">Manage your novels, scenes, and planning notes.</p>
-        </div>
-        <button
-          onClick={handleCreateProject}
-          disabled={isCreating}
-          className="bg-writer-navy text-writer-white px-6 py-3 rounded-lg hover:bg-writer-navy/90 transition-colors disabled:opacity-50"
-        >
-          {isCreating ? 'Creating...' : '+ New Project'}
-        </button>
 
+  return (
+    <div className="min-h-screen bg-writer-white p-8">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-writer-navy">My Projects</h1>
+          <button
+            onClick={handleCreateProject}
+            disabled={isCreating}
+            className="bg-writer-navy text-writer-white px-6 py-3 rounded-lg hover:bg-writer-navy/90 transition-colors disabled:opacity-50"
+          >
+            {isCreating ? 'Creating...' : '+ New Project'}
+          </button>
+        </div>
+
+        {isLoading ? (
+          <p className="text-writer-navy/60">Loading projects...</p>
+        ) : (
+          <ProjectGrid projects={projects} />
+        )}
       </div>
-      {/* <div className="mt-8">
-        <Editor />
-      </div> */}
-    </main>
+    </div>
   );
 }

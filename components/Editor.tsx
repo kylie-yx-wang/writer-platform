@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { createClient } from '@/utils/supabase/client';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import { 
@@ -18,7 +19,6 @@ import {
     Heading1, 
     Heading2 
   } from 'lucide-react';
-import { createClient } from '../utils/supabase/client';
 
 // 1. Extensions safely isolated
 const extensions = [
@@ -31,16 +31,12 @@ const extensions = [
 
 // --- The Toolbar Component ---
 const MenuBar = ({ editor }: { editor: any }) => {
-  // 2. THE FIX: A manual trigger to force Next.js to re-render the buttons
   const [, setRenderTrigger] = useState(0);
 
   useEffect(() => {
     if (!editor) return;
     
-    // Tiptap fires a 'transaction' event on every keystroke, click, or highlight.
-    // We tell React to update the component whenever this happens!
     const handleUpdate = () => setRenderTrigger((val) => val + 1);
-    
     editor.on('transaction', handleUpdate);
     
     return () => {
@@ -52,7 +48,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
     return null;
   }
 
-  // 3. Back to your custom Navy theme!
   const getButtonClass = (isActive: boolean) => {
     if (isActive) {
       return 'p-2 rounded-md transition-colors bg-writer-navy text-writer-white shadow-sm';
@@ -170,69 +165,119 @@ const MenuBar = ({ editor }: { editor: any }) => {
   );
 };
 
-// 1. Add this interface so the Editor knows it expects a sceneId
 interface EditorProps {
   sceneId: string;
 }
 
+type SaveStatus = 'Saved' | 'Unsaved changes' | 'Saving...' | 'Error saving';
+
 // --- The Main Editor Component ---
 export default function Editor({ sceneId }: EditorProps) {
   const supabase = createClient();
-  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('Saved');
+  
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const editor = useEditor({
-    extensions,
-    content: '<p>Start drafting your scene here...</p>',
-    immediatelyRender: false,
+    extensions: extensions, // FIXED: Now using the array from the top of the file!
+    content: '', 
     editorProps: {
       attributes: {
-        class: 'min-h-[500px] focus:outline-none text-writer-black leading-relaxed text-lg prose prose-stone max-w-none px-2 py-4',
+        class: 'prose prose-lg focus:outline-none max-w-none min-h-[500px]',
       },
     },
   });
 
-  // --- THE SAVE FUNCTION ---
-const handleSave = async () => {
-    if (!editor) return;
-    
-    setIsSaving(true);
-    const htmlContent = editor.getHTML(); 
+  // 1. Fetch the saved content on load
+  useEffect(() => {
+    const fetchScene = async () => {
+      const { data, error } = await supabase
+        .from('scenes')
+        .select('content')
+        .eq('id', sceneId)
+        .single();
 
-    // 3. Change .insert() to .update() and match the sceneId!
-    const { error } = await supabase
-      .from('scenes')
-      .update({ 
-        content: htmlContent, 
-        updated_at: new Date().toISOString() 
-      })
-      .eq('id', sceneId); // <-- This is crucial! It tells Supabase WHICH scene to update.
+      if (error) {
+        console.error('Error fetching scene:', error);
+      } else if (data && editor && !editor.isDestroyed) {
+        editor.commands.setContent(data.content || '');
+      }
+      
+      setIsLoading(false);
+    };
 
-    if (error) {
-      console.error('Error saving scene:', error);
-      alert('Failed to save scene.');
-    } else {
-      console.log('Scene saved successfully!');
+    if (editor) {
+      fetchScene();
     }
-    
-    setIsSaving(false);
+  }, [editor, sceneId, supabase]);
+
+  // 2. Debounced Auto-Save
+  useEffect(() => {
+    if (!editor || isLoading) return;
+
+    const handleUpdate = () => {
+      setSaveStatus('Unsaved changes');
+
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      timeoutRef.current = setTimeout(async () => {
+        setSaveStatus('Saving...');
+        const htmlContent = editor.getHTML();
+
+        const { error } = await supabase
+          .from('scenes')
+          .update({ 
+            content: htmlContent, 
+            updated_at: new Date().toISOString() 
+          })
+          .eq('id', sceneId);
+
+        if (error) {
+          console.error('Auto-save error:', error);
+          setSaveStatus('Error saving');
+        } else {
+          setSaveStatus('Saved');
+        }
+      }, 2000); // Saves after 2 seconds of no typing
+    };
+
+    editor.on('update', handleUpdate);
+
+    return () => {
+      editor.off('update', handleUpdate);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [editor, isLoading, sceneId, supabase]);
+
+  // Dynamic status badge styling
+  const getStatusColor = () => {
+    switch (saveStatus) {
+      case 'Saving...': return 'text-amber-600 bg-amber-50 border-amber-200';
+      case 'Unsaved changes': return 'text-gray-500 bg-gray-50 border-gray-200';
+      case 'Error saving': return 'text-rose-600 bg-rose-50 border-rose-200';
+      default: return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+    }
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Save Button Header */}
-      <div className="flex justify-end mb-4">
-        <button 
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-writer-navy text-writer-white px-4 py-2 rounded-md hover:bg-writer-navy/90 transition-colors disabled:opacity-50"
-        >
-          {isSaving ? 'Saving...' : 'Save Scene'}
-        </button>
+      {/* Auto-Save Status Header */}
+      <div className="flex justify-end mb-4 h-10 items-center">
+        {!isLoading && (
+          <span className={`text-sm font-medium px-3 py-1 rounded-full border transition-colors ${getStatusColor()}`}>
+            {saveStatus}
+          </span>
+        )}
       </div>
 
       <div className="bg-writer-white border border-writer-beige rounded-xl p-6 shadow-sm">
         <MenuBar editor={editor} />
-        <EditorContent editor={editor} />
+        {isLoading ? (
+          <div className="animate-pulse text-writer-navy/60">Loading your scene...</div>
+        ) : (
+          <EditorContent editor={editor} />
+        )}
       </div>
     </div>
   );
