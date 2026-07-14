@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { createClient } from '@/utils/supabase/client';
@@ -20,7 +20,6 @@ import {
     Heading2 
   } from 'lucide-react';
 
-// 1. Extensions safely isolated
 const extensions = [
   StarterKit,
   Underline,
@@ -44,9 +43,7 @@ const MenuBar = ({ editor }: { editor: any }) => {
     };
   }, [editor]);
 
-  if (!editor) {
-    return null;
-  }
+  if (!editor) return null;
 
   const getButtonClass = (isActive: boolean) => {
     if (isActive) {
@@ -56,111 +53,21 @@ const MenuBar = ({ editor }: { editor: any }) => {
   };
 
   return (
-    <div className="flex flex-wrap gap-2 mb-4 p-2 bg-writer-beige/30 border border-writer-beige rounded-xl">
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        className={getButtonClass(editor.isActive('bold'))}
-        title="Bold"
-      >
-        <Bold size={18} />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        className={getButtonClass(editor.isActive('italic'))}
-        title="Italic"
-      >
-        <Italic size={18} />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        className={getButtonClass(editor.isActive('underline'))}
-        title="Underline"
-      >
-        <UnderlineIcon size={18} />
-      </button>
-
+    <div className="flex flex-wrap gap-2 mb-6 p-2 bg-writer-beige/30 border border-writer-beige rounded-xl">
+      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={getButtonClass(editor.isActive('bold'))} title="Bold"><Bold size={18} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={getButtonClass(editor.isActive('italic'))} title="Italic"><Italic size={18} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} className={getButtonClass(editor.isActive('underline'))} title="Underline"><UnderlineIcon size={18} /></button>
       <div className="w-px bg-writer-beige mx-1" />
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        className={getButtonClass(editor.isActive('heading', { level: 1 }))}
-        title="Heading 1"
-      >
-        <Heading1 size={18} />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        className={getButtonClass(editor.isActive('heading', { level: 2 }))}
-        title="Heading 2"
-      >
-        <Heading2 size={18} />
-      </button>
-
+      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={getButtonClass(editor.isActive('heading', { level: 1 }))} title="Heading 1"><Heading1 size={18} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={getButtonClass(editor.isActive('heading', { level: 2 }))} title="Heading 2"><Heading2 size={18} /></button>
       <div className="w-px bg-writer-beige mx-1" />
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={getButtonClass(editor.isActive('bulletList'))}
-        title="Bullet List"
-      >
-        <List size={18} />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={getButtonClass(editor.isActive('orderedList'))}
-        title="Numbered List"
-      >
-        <ListOrdered size={18} />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        className={getButtonClass(editor.isActive('blockquote'))}
-        title="Quote / Indent"
-      >
-        <Quote size={18} />
-      </button>
-
+      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={getButtonClass(editor.isActive('bulletList'))} title="Bullet List"><List size={18} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={getButtonClass(editor.isActive('orderedList'))} title="Numbered List"><ListOrdered size={18} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={getButtonClass(editor.isActive('blockquote'))} title="Quote / Indent"><Quote size={18} /></button>
       <div className="w-px bg-writer-beige mx-1" />
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().setTextAlign('left').run()}
-        className={getButtonClass(editor.isActive({ textAlign: 'left' }))}
-        title="Align Left"
-      >
-        <AlignLeft size={18} />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().setTextAlign('center').run()}
-        className={getButtonClass(editor.isActive({ textAlign: 'center' }))}
-        title="Align Center"
-      >
-        <AlignCenter size={18} />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => editor.chain().focus().setTextAlign('right').run()}
-        className={getButtonClass(editor.isActive({ textAlign: 'right' }))}
-        title="Align Right"
-      >
-        <AlignRight size={18} />
-      </button>
+      <button type="button" onClick={() => editor.chain().focus().setTextAlign('left').run()} className={getButtonClass(editor.isActive({ textAlign: 'left' }))} title="Align Left"><AlignLeft size={18} /></button>
+      <button type="button" onClick={() => editor.chain().focus().setTextAlign('center').run()} className={getButtonClass(editor.isActive({ textAlign: 'center' }))} title="Align Center"><AlignCenter size={18} /></button>
+      <button type="button" onClick={() => editor.chain().focus().setTextAlign('right').run()} className={getButtonClass(editor.isActive({ textAlign: 'right' }))} title="Align Right"><AlignRight size={18} /></button>
     </div>
   );
 };
@@ -177,10 +84,13 @@ export default function Editor({ sceneId }: EditorProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('Saved');
   
+  // New state and ref for the Title
+  const [title, setTitle] = useState('');
+  const titleRef = useRef(''); // We use a ref so the setTimeout always has the freshest title
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const editor = useEditor({
-    extensions: extensions, // FIXED: Now using the array from the top of the file!
+    extensions: extensions, 
     content: '', 
     editorProps: {
       attributes: {
@@ -189,19 +99,25 @@ export default function Editor({ sceneId }: EditorProps) {
     },
   });
 
-  // 1. Fetch the saved content on load
+  // 1. Fetch both Title and Content on load
   useEffect(() => {
     const fetchScene = async () => {
       const { data, error } = await supabase
         .from('scenes')
-        .select('content')
+        // We need both title and content now
+        .select('title, content') 
         .eq('id', sceneId)
         .single();
 
       if (error) {
         console.error('Error fetching scene:', error);
-      } else if (data && editor && !editor.isDestroyed) {
-        editor.commands.setContent(data.content || '');
+      } else if (data) {
+        setTitle(data.title || 'Untitled Scene');
+        titleRef.current = data.title || 'Untitled Scene';
+        
+        if (editor && !editor.isDestroyed) {
+          editor.commands.setContent(data.content || '');
+        }
       }
       
       setIsLoading(false);
@@ -212,45 +128,52 @@ export default function Editor({ sceneId }: EditorProps) {
     }
   }, [editor, sceneId, supabase]);
 
-  // 2. Debounced Auto-Save
+  // 2. Shared Unified Auto-Save Function
+  const triggerAutoSave = useCallback(() => {
+    setSaveStatus('Unsaved changes');
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    timeoutRef.current = setTimeout(async () => {
+      setSaveStatus('Saving...');
+      const htmlContent = editor?.getHTML() || '';
+      const currentTitle = titleRef.current; // Grab the latest title from the ref
+
+      const { error } = await supabase
+        .from('scenes')
+        .update({ 
+          title: currentTitle,
+          content: htmlContent, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', sceneId);
+
+      if (error) {
+        console.error('Auto-save error:', error);
+        setSaveStatus('Error saving');
+      } else {
+        setSaveStatus('Saved');
+      }
+    }, 2000);
+  }, [editor, sceneId, supabase]);
+
+  // 3. Listen to Tiptap updates
   useEffect(() => {
     if (!editor || isLoading) return;
 
-    const handleUpdate = () => {
-      setSaveStatus('Unsaved changes');
-
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-      timeoutRef.current = setTimeout(async () => {
-        setSaveStatus('Saving...');
-        const htmlContent = editor.getHTML();
-
-        const { error } = await supabase
-          .from('scenes')
-          .update({ 
-            content: htmlContent, 
-            updated_at: new Date().toISOString() 
-          })
-          .eq('id', sceneId);
-
-        if (error) {
-          console.error('Auto-save error:', error);
-          setSaveStatus('Error saving');
-        } else {
-          setSaveStatus('Saved');
-        }
-      }, 2000); // Saves after 2 seconds of no typing
-    };
-
-    editor.on('update', handleUpdate);
-
+    editor.on('update', triggerAutoSave);
     return () => {
-      editor.off('update', handleUpdate);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      editor.off('update', triggerAutoSave);
     };
-  }, [editor, isLoading, sceneId, supabase]);
+  }, [editor, isLoading, triggerAutoSave]);
 
-  // Dynamic status badge styling
+  // 4. Handle Title input changes
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTitle = e.target.value;
+    setTitle(newTitle);
+    titleRef.current = newTitle; // Keep the ref synced
+    triggerAutoSave(); // Trigger the exact same debounce logic
+  };
+
   const getStatusColor = () => {
     switch (saveStatus) {
       case 'Saving...': return 'text-amber-600 bg-amber-50 border-amber-200';
@@ -262,7 +185,6 @@ export default function Editor({ sceneId }: EditorProps) {
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Auto-Save Status Header */}
       <div className="flex justify-end mb-4 h-10 items-center">
         {!isLoading && (
           <span className={`text-sm font-medium px-3 py-1 rounded-full border transition-colors ${getStatusColor()}`}>
@@ -271,12 +193,29 @@ export default function Editor({ sceneId }: EditorProps) {
         )}
       </div>
 
-      <div className="bg-writer-white border border-writer-beige rounded-xl p-6 shadow-sm">
-        <MenuBar editor={editor} />
+      <div className="bg-writer-white border border-writer-beige rounded-xl p-8 shadow-sm">
         {isLoading ? (
-          <div className="animate-pulse text-writer-navy/60">Loading your scene...</div>
+          <div className="animate-pulse space-y-4">
+            <div className="h-10 bg-writer-beige/30 rounded w-1/3 mb-8"></div>
+            <div className="h-12 bg-writer-beige/30 rounded w-full mb-6"></div>
+            <div className="h-4 bg-writer-beige/30 rounded w-full"></div>
+            <div className="h-4 bg-writer-beige/30 rounded w-5/6"></div>
+            <div className="h-4 bg-writer-beige/30 rounded w-4/6"></div>
+          </div>
         ) : (
-          <EditorContent editor={editor} />
+          <>
+            {/* The seamlessly integrated Title Input */}
+            <input
+              type="text"
+              value={title}
+              onChange={handleTitleChange}
+              placeholder="Scene Title"
+              className="w-full text-4xl font-bold text-writer-navy bg-transparent border-none outline-none placeholder:text-writer-navy/20 mb-6 focus:ring-0"
+            />
+            
+            <MenuBar editor={editor} />
+            <EditorContent editor={editor} />
+          </>
         )}
       </div>
     </div>
