@@ -18,6 +18,7 @@ import {
     Heading1, 
     Heading2 
   } from 'lucide-react';
+import { createClient } from '../utils/supabase/client';
 
 // 1. Extensions safely isolated
 const extensions = [
@@ -169,8 +170,16 @@ const MenuBar = ({ editor }: { editor: any }) => {
   );
 };
 
+// 1. Add this interface so the Editor knows it expects a sceneId
+interface EditorProps {
+  sceneId: string;
+}
+
 // --- The Main Editor Component ---
-export default function Editor() {
+export default function Editor({ sceneId }: EditorProps) {
+  const supabase = createClient();
+  const [isSaving, setIsSaving] = useState(false);
+
   const editor = useEditor({
     extensions,
     content: '<p>Start drafting your scene here...</p>',
@@ -182,8 +191,45 @@ export default function Editor() {
     },
   });
 
+  // --- THE SAVE FUNCTION ---
+const handleSave = async () => {
+    if (!editor) return;
+    
+    setIsSaving(true);
+    const htmlContent = editor.getHTML(); 
+
+    // 3. Change .insert() to .update() and match the sceneId!
+    const { error } = await supabase
+      .from('scenes')
+      .update({ 
+        content: htmlContent, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', sceneId); // <-- This is crucial! It tells Supabase WHICH scene to update.
+
+    if (error) {
+      console.error('Error saving scene:', error);
+      alert('Failed to save scene.');
+    } else {
+      console.log('Scene saved successfully!');
+    }
+    
+    setIsSaving(false);
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto">
+      {/* Save Button Header */}
+      <div className="flex justify-end mb-4">
+        <button 
+          onClick={handleSave}
+          disabled={isSaving}
+          className="bg-writer-navy text-writer-white px-4 py-2 rounded-md hover:bg-writer-navy/90 transition-colors disabled:opacity-50"
+        >
+          {isSaving ? 'Saving...' : 'Save Scene'}
+        </button>
+      </div>
+
       <div className="bg-writer-white border border-writer-beige rounded-xl p-6 shadow-sm">
         <MenuBar editor={editor} />
         <EditorContent editor={editor} />
