@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import SceneGrid, { Scene } from '@/components/SceneGrid';
 import ProjectSettingsModal from '@/components/Modals/ProjectSettingsModal';
+import NewSceneModal from '@/components/Modals/NewSceneModal';
 
 export default function ProjectOverview() {
   const router = useRouter();
@@ -19,8 +20,9 @@ export default function ProjectOverview() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Modal states
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isNewSceneModalOpen, setIsNewSceneModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,15 +49,18 @@ export default function ProjectOverview() {
     fetchData();
   }, [projectId, supabase]);
 
-  const handleCreateScene = async () => {
-    setIsCreating(true);
+  const handleCreateScene = async (sceneData: any) => {
     const { data, error } = await supabase
       .from('scenes')
-      .insert([{ project_id: projectId, title: 'Untitled Scene', content: '' }])
+      .insert([{ 
+        project_id: projectId, 
+        content: '',
+        ...sceneData 
+      }])
       .select().single();
-
+  
     if (data) router.push(`/editor/${data.id}`);
-    if (error) setIsCreating(false);
+    if (error) alert('Failed to create scene.');
   };
 
   // Passed to the modal to execute when the user hits "Save"
@@ -70,7 +75,7 @@ export default function ProjectOverview() {
       alert('Failed to update project settings.');
     } else {
       setProjectTitle(newTitle); 
-      setIsModalOpen(false);         
+      setIsSettingsModalOpen(false);         
     }
   };
 
@@ -95,7 +100,7 @@ export default function ProjectOverview() {
                   {projectTitle}
                 </h1>
                 <button
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => setIsSettingsModalOpen(true)}
                   className="text-sm font-medium text-writer-navy/60 hover:text-writer-navy bg-writer-beige/20 hover:bg-writer-beige/50 px-3 py-1.5 rounded-md transition-colors"
                 >
                   Edit
@@ -105,7 +110,7 @@ export default function ProjectOverview() {
           </div>
 
           <button
-            onClick={handleCreateScene}
+            onClick={() => setIsNewSceneModalOpen(true)}
             disabled={isCreating}
             className="bg-writer-navy text-writer-white px-6 py-3 rounded-lg hover:bg-writer-navy/90 transition-colors disabled:opacity-50 whitespace-nowrap"
           >
@@ -123,10 +128,16 @@ export default function ProjectOverview() {
 
       {/* --- Settings Modal --- */}
       <ProjectSettingsModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
         initialTitle={projectTitle}
         onSave={handleSaveSettings}
+      />
+      <NewSceneModal
+        isOpen={isNewSceneModalOpen}
+        onClose={() => setIsNewSceneModalOpen(false)}
+        onContinue={handleCreateScene}
+        nextSceneNumber={scenes.length + 1}
       />
     </div>
   );
